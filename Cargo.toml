@@ -1,16 +1,16 @@
 [package]
-name = "bitsrun"
-description = "A headless login and logout CLI for 10.0.0.55 at BIT"
-version = "0.5.0"
-edition = "2021"
+name = "bitsrun-lib"
+description = "Login and logout library for 10.0.0.55 at BIT"
+version = "0.1.0"
+edition = "2024"
 license = "MIT"
-homepage = "https://github.com/spencerwooo/bitsrun-rs"
-documentation = "https://github.com/spencerwooo/bitsrun-rs"
-repository = "https://github.com/spencerwooo/bitsrun-rs"
+homepage = "https://github.com/so1ve/bitsrun-lib-rs"
+documentation = "https://github.com/so1ve/bitsrun-lib-rs"
+repository = "https://github.com/so1ve/bitsrun-lib-rs"
 readme = "README.md"
 keywords = ["bit", "bitsrun", "srun", "srun-client", "srun-login"]
-categories = ["command-line-utilities"]
-authors = ["Spencer Woo <spencer.woo@outlook.com>"]
+categories = ["authentication"]
+authors = ["Spencer Woo <spencer.woo@outlook.com>", "Ray <so1ve@outlook.com>"]
 
 [dependencies]
 reqwest = { version = "0.11", features = [
@@ -26,11 +26,7 @@ hmac = "0.12"
 md-5 = "0.10"
 base64 = "0.21"
 sha1 = "0.10"
-clap = { version = "4.5", features = ["derive"] }
 directories = "5.0"
-owo-colors = { version = "3", features = ["supports-colors"] }
-rpassword = "7.3"
-rprompt = "2.1"
 tabled = { version = "0.14", features = ["color"] }
 humansize = "2.1"
 chrono-humanize = "0.2"
@@ -41,8 +37,3 @@ enable-ansi-support = "0.2"
 
 [profile.release]
 strip = "symbols"
-
-[package.metadata.deb]
-copyright = "2025 Spencer Woo"
-maintainer-scripts = "debian/"
-systemd-units = { enable = true, start = false }
