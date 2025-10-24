@@ -188,7 +188,6 @@ pub struct SrunClient {
     pub ip: IpAddr,
     pub ac_id: String,
     pub dm: bool, // whether the device is authenticated with its mac address
-    pub login_state: SrunLoginState,
 }
 
 impl SrunClient {
@@ -221,7 +220,6 @@ impl SrunClient {
             ip,
             ac_id,
             dm,
-            login_state,
         })
     }
 
@@ -232,9 +230,10 @@ impl SrunClient {
         username: String,
         password: String,
     ) -> Result<SrunPortalResponse> {
+        let login_state = self.get_login_state().await?;
         // check if already logged in
-        if (self.login_state.error == "ok") && !force {
-            bail!("{} already logged in", self.login_state.online_ip)
+        if (login_state.error == "ok") && !force {
+            bail!("{} already logged in", login_state.online_ip)
         }
 
         // construct checksum and crypto encodings
@@ -305,13 +304,14 @@ impl SrunClient {
 
     /// Logout of the SRUN portal
     pub async fn logout(&self, force: bool, username: String) -> Result<SrunPortalResponse> {
+        let login_state = self.get_login_state().await?;
         // check if already logged out
-        if (self.login_state.error == "not_online_error") && !force {
+        if (login_state.error == "not_online_error") && !force {
             bail!("{} already logged out", self.ip)
         }
 
         // check if username match
-        let logged_in_username = self.login_state.user_name.clone().unwrap_or_default();
+        let logged_in_username = login_state.user_name.clone().unwrap_or_default();
         if logged_in_username != username {
             warn!(
                 "Logged in user {} does not match yourself {}, logging out anyway",
@@ -320,7 +320,7 @@ impl SrunClient {
         }
 
         // check if ip match
-        let logged_in_ip = self.login_state.online_ip;
+        let logged_in_ip = login_state.online_ip;
         if logged_in_ip != self.ip {
             warn!(
                 "logged in ip (`{}`) does not match `{}`, things may not work as expected",
