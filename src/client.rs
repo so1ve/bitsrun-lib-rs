@@ -184,10 +184,6 @@ pub struct SrunClient {
     // reusable http client
     pub http_client: Client,
 
-    // srun login info, username is student id
-    pub username: String,
-    pub password: String,
-
     // srun portal info
     pub ip: IpAddr,
     pub ac_id: String,
@@ -210,8 +206,6 @@ impl SrunClient {
     /// * `http_client` - The http client to be used (a new one will be created
     ///   if not specified)
     pub async fn new(
-        username: String,
-        password: String,
         http_client: Option<Client>,
         ip: Option<IpAddr>,
         dm: Option<bool>,
@@ -224,8 +218,6 @@ impl SrunClient {
 
         Ok(SrunClient {
             http_client,
-            username,
-            password,
             ip,
             ac_id,
             dm,
@@ -234,20 +226,25 @@ impl SrunClient {
     }
 
     /// Login to the SRUN portal
-    pub async fn login(&self, force: bool) -> Result<SrunPortalResponse> {
+    pub async fn login(
+        &self,
+        force: bool,
+        username: String,
+        password: String,
+    ) -> Result<SrunPortalResponse> {
         // check if already logged in
         if (self.login_state.error == "ok") && !force {
             bail!("{} already logged in", self.login_state.online_ip)
         }
 
         // construct checksum and crypto encodings
-        let token = self.get_challenge().await?;
+        let token = self.get_challenge(&username).await?;
 
         let chksum_data = json!({
-            "username": self.username.clone(),
-            "password": self.password.clone(),
+            "username": &username,
+            "password": &password,
             "ip": self.ip.to_string(),
-            "acid": self.ac_id.clone(),
+            "acid": &self.ac_id,
             "enc_ver": String::from("srun_bx1"),
         });
 
@@ -262,7 +259,7 @@ impl SrunClient {
         let chksum = {
             let chk = format!(
                 "{0}{1}{0}{2}{0}{3}{0}{4}{0}{5}{0}{6}{0}{7}",
-                &token, &self.username, &hmd5, &self.ac_id, &self.ip, &SRUN_N, &SRUN_TYPE, &info
+                &token, username, &hmd5, &self.ac_id, &self.ip, &SRUN_N, &SRUN_TYPE, &info
             );
             let mut hasher = Sha1::new();
             hasher.update(chk);
@@ -274,7 +271,7 @@ impl SrunClient {
         let params = [
             ("callback", "jsonp"),
             ("action", "login"),
-            ("username", self.username.as_str()),
+            ("username", username.as_str()),
             ("password", password_encoded.as_str()),
             ("chksum", chksum.as_str()),
             ("info", info.as_str()),
@@ -307,7 +304,7 @@ impl SrunClient {
     }
 
     /// Logout of the SRUN portal
-    pub async fn logout(&self, force: bool) -> Result<SrunPortalResponse> {
+    pub async fn logout(&self, force: bool, username: String) -> Result<SrunPortalResponse> {
         // check if already logged out
         if (self.login_state.error == "not_online_error") && !force {
             bail!("{} already logged out", self.ip)
@@ -315,10 +312,10 @@ impl SrunClient {
 
         // check if username match
         let logged_in_username = self.login_state.user_name.clone().unwrap_or_default();
-        if logged_in_username != self.username {
+        if logged_in_username != username {
             warn!(
                 "Logged in user {} does not match yourself {}, logging out anyway",
-                logged_in_username, self.username
+                logged_in_username, username
             );
         }
 
@@ -395,10 +392,10 @@ impl SrunClient {
         get_login_state(&self.http_client).await
     }
 
-    async fn get_challenge(&self) -> Result<String> {
+    async fn get_challenge(&self, username: &str) -> Result<String> {
         let params = [
             ("callback", "jsonp"),
-            ("username", self.username.as_str()),
+            ("username", username),
             ("ip", &self.ip.to_string()),
         ];
         let url = format!("{}/cgi-bin/get_challenge", SRUN_PORTAL);
