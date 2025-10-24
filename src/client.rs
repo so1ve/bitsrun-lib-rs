@@ -385,6 +385,7 @@ impl SrunClient {
         if raw_text.len() < 8 {
             bail!("login response too short: `{}`", raw_text)
         }
+
         let raw_json = &raw_text[6..raw_text.len() - 1];
         serde_json::from_str::<SrunPortalResponse>(raw_json)
             .with_context(|| format!("failed to parse malformed logout response:\n  {}", raw_json))
