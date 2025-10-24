@@ -1,22 +1,15 @@
 use std::net::IpAddr;
 
-use crate::xencode::fkbase64;
-use crate::xencode::xencode;
-use anyhow::bail;
-use anyhow::Context;
-use anyhow::Result;
-use hmac::Hmac;
-use hmac::Mac;
-use md5::Digest;
-use md5::Md5;
-use owo_colors::OwoColorize;
-use owo_colors::Stream::Stdout;
+use anyhow::{Context, Result, bail};
+use hmac::{Hmac, Mac};
+use log::{debug, warn};
+use md5::{Digest, Md5};
 use reqwest::Client;
-
-use serde::Deserialize;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
 use sha1::Sha1;
+
+use crate::xencode::{fkbase64, xencode};
 
 /// Constants used for the /srun_portal endpoint
 pub const SRUN_PORTAL: &str = "http://10.0.0.55";
@@ -28,8 +21,9 @@ pub const CAPTIVE_PORTAL_TEST: &str = "http://www.bit.edu.cn";
 
 /// The response from the `/rad_user_info` endpoint
 ///
-/// This response is used to determine if the device is logged in or not, and if it is logged in,
-/// what the current login state is (i.e., IP address, user balance, etc.).
+/// This response is used to determine if the device is logged in or not, and if
+/// it is logged in, what the current login state is (i.e., IP address, user
+/// balance, etc.).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SrunLoginState {
     // always present
@@ -94,7 +88,7 @@ pub struct SrunLoginState {
 }
 
 /// Get the login state of the current device
-pub async fn get_login_state(client: &Client, verbose: bool) -> Result<SrunLoginState> {
+pub async fn get_login_state(client: &Client) -> Result<SrunLoginState> {
     // call /rad_user_info with callback=jsonp to get the login state
     let params = [("callback", "jsonp")];
     let url = format!("{}/cgi-bin/rad_user_info", SRUN_PORTAL);
@@ -108,13 +102,7 @@ pub async fn get_login_state(client: &Client, verbose: bool) -> Result<SrunLogin
         .with_context(|| "failed to get login state")?;
     let raw_text = resp.text().await?;
 
-    if verbose {
-        println!(
-            "{} status response from portal:\n{}",
-            "bitsrun:".if_supports_color(Stdout, |t| t.blue()),
-            raw_text.if_supports_color(Stdout, |t| t.dimmed())
-        );
-    }
+    debug!("Status response from portal:\n{}", raw_text);
 
     // valid json starts at index 6 and ends at the second to last character
     if raw_text.len() < 8 {
@@ -131,27 +119,21 @@ pub async fn get_login_state(client: &Client, verbose: bool) -> Result<SrunLogin
 
 /// Get the ac_id of the current device by visiting a URL
 async fn get_acid_by_url(client: &Client, url: &str) -> Result<String> {
-    let resp = client.get(url).send().await.with_context(|| {
-        format!(
-            "failed to get ac_id from `{}`",
-            url.if_supports_color(Stdout, |t| t.underline())
-        )
-    })?;
+    let resp = client
+        .get(url)
+        .send()
+        .await
+        .with_context(|| format!("failed to get ac_id from `{}`", url))?;
+
     let redirect_url = resp.url().to_string();
-    let parsed_url = url::Url::parse(&redirect_url).with_context(|| {
-        format!(
-            "failed to parse url `{}`",
-            redirect_url.if_supports_color(Stdout, |t| t.underline())
-        )
-    })?;
+    let parsed_url = url::Url::parse(&redirect_url)
+        .with_context(|| format!("failed to parse url `{}`", redirect_url))?;
 
     let mut query = parsed_url.query_pairs().into_owned();
-    let ac_id = query.find(|(key, _)| key == "ac_id").with_context(|| {
-        format!(
-            "failed to get ac_id from `{}`",
-            redirect_url.if_supports_color(Stdout, |t| t.underline())
-        )
-    })?;
+    let ac_id = query
+        .find(|(key, _)| key == "ac_id")
+        .with_context(|| format!("failed to get ac_id from `{}`", redirect_url))?;
+
     Ok(ac_id.1)
 }
 
@@ -162,8 +144,8 @@ async fn get_acid(client: &Client) -> Result<String> {
     // Otherwise, we fall back to visit `SRUN_PORTAL` directly.
     // https://en.wikipedia.org/wiki/Captive_portal#Detection
     //
-    // Because of ITC's double authentication mechanism, visiting `SRUN_PORTAL` directly is not preferred.
-    // https://itc.bit.edu.cn/fwzn/zxbl/f2c0c8e939ce4e9cace880d5403fe4b5.htm
+    // Because of ITC's double authentication mechanism, visiting `SRUN_PORTAL`
+    // directly is not preferred. https://itc.bit.edu.cn/fwzn/zxbl/f2c0c8e939ce4e9cace880d5403fe4b5.htm
     get_acid_by_url(client, CAPTIVE_PORTAL_TEST)
         .await
         .or(get_acid_by_url(client, SRUN_PORTAL).await)
@@ -214,16 +196,19 @@ pub struct SrunClient {
 }
 
 impl SrunClient {
-    /// Create a new SRUN client, where the http client will be reused if provided
+    /// Create a new SRUN client, where the http client will be reused if
+    /// provided
     ///
     /// # Arguments
     ///
     /// * `username` - The username of the SRUN account (student id)
     /// * `password` - The password of the SRUN account
-    /// * `ip` - The IP address (`online_ip` from the login portal if not specified)
-    /// * `dm` - Whether the device is authenticated through the campus login portal with its mac
-    ///   address (important for dumb terminals!!!)
-    /// * `http_client` - The http client to be used (a new one will be created if not specified)
+    /// * `ip` - The IP address (`online_ip` from the login portal if not
+    ///   specified)
+    /// * `dm` - Whether the device is authenticated through the campus login
+    ///   portal with its mac address (important for dumb terminals!!!)
+    /// * `http_client` - The http client to be used (a new one will be created
+    ///   if not specified)
     pub async fn new(
         username: String,
         password: String,
@@ -233,9 +218,10 @@ impl SrunClient {
     ) -> Result<SrunClient> {
         let http_client = http_client.unwrap_or_default();
         let ac_id = get_acid(&http_client).await?;
-        let login_state = get_login_state(&http_client, false).await?;
+        let login_state = get_login_state(&http_client).await?;
         let ip = ip.unwrap_or(login_state.online_ip);
         let dm = dm.unwrap_or(false);
+
         Ok(SrunClient {
             http_client,
             username,
@@ -248,20 +234,17 @@ impl SrunClient {
     }
 
     /// Login to the SRUN portal
-    pub async fn login(&self, force: bool, verbose: bool) -> Result<SrunPortalResponse> {
+    pub async fn login(&self, force: bool) -> Result<SrunPortalResponse> {
         // check if already logged in
-        if (self.login_state.error == "ok") & !force {
+        if (self.login_state.error == "ok") && !force {
             bail!(
                 "{} already logged in",
-                self.login_state
-                    .online_ip
-                    .to_string()
-                    .if_supports_color(Stdout, |t| t.underline())
+                self.login_state.online_ip.to_string()
             )
         }
 
         // construct checksum and crypto encodings
-        let token = self.get_challenge(verbose).await?;
+        let token = self.get_challenge().await?;
 
         let chksum_data = json!({
             "username": self.username.clone(),
@@ -315,57 +298,39 @@ impl SrunClient {
             .with_context(|| "failed to send request when logging in")?;
         let raw_text = resp.text().await?;
 
-        if verbose {
-            println!(
-                "{} login response from portal:\n{}",
-                "bitsrun:".if_supports_color(Stdout, |t| t.blue()),
-                raw_text.if_supports_color(Stdout, |t| t.dimmed())
-            );
-        }
+        debug!("Login response from portal:\n{}", raw_text);
 
         if raw_text.len() < 8 {
             bail!("login response too short: `{}`", raw_text)
         }
+
         let raw_json = &raw_text[6..raw_text.len() - 1];
         serde_json::from_str::<SrunPortalResponse>(raw_json)
             .with_context(|| format!("failed to parse malformed login response:\n  {}", raw_json))
     }
 
     /// Logout of the SRUN portal
-    pub async fn logout(&self, force: bool, verbose: bool) -> Result<SrunPortalResponse> {
+    pub async fn logout(&self, force: bool) -> Result<SrunPortalResponse> {
         // check if already logged out
-        if (self.login_state.error == "not_online_error") & !force {
-            bail!(
-                "{} already logged out",
-                self.ip
-                    .to_string()
-                    .if_supports_color(Stdout, |t| t.underline())
-            )
+        if (self.login_state.error == "not_online_error") && !force {
+            bail!("{} already logged out", self.ip.to_string())
         }
 
         // check if username match
         let logged_in_username = self.login_state.user_name.clone().unwrap_or_default();
         if logged_in_username != self.username {
-            println!(
-                "{} logged in user {} does not match yourself {}, logging out anyway",
-                "warning:".if_supports_color(Stdout, |t| t.yellow()),
-                format!("({})", logged_in_username).dimmed(),
-                format!("({})", self.username).dimmed()
+            warn!(
+                "Logged in user {} does not match yourself {}, logging out anyway",
+                logged_in_username, self.username
             );
         }
 
         // check if ip match
         let logged_in_ip = self.login_state.online_ip;
         if logged_in_ip != self.ip {
-            println!(
-                "{} logged in ip (`{}`) does not match `{}`, things may not work as expected",
-                "warning:".if_supports_color(Stdout, |t| t.yellow()),
-                logged_in_ip
-                    .to_string()
-                    .if_supports_color(Stdout, |t| t.underline()),
-                self.ip
-                    .to_string()
-                    .if_supports_color(Stdout, |t| t.underline())
+            warn!(
+                "logged in ip (`{}`) does not match `{}`, things may not work as expected",
+                logged_in_ip, self.ip
             );
         }
 
@@ -418,13 +383,7 @@ impl SrunClient {
             .with_context(|| "failed to send request when logging out")?;
         let raw_text = resp.text().await?;
 
-        if verbose {
-            println!(
-                "{} logout response from portal:\n{}",
-                "bitsrun:".if_supports_color(Stdout, |t| t.blue()),
-                raw_text.if_supports_color(Stdout, |t| t.dimmed())
-            );
-        }
+        debug!("Logout response from portal:\n{}", raw_text);
 
         if raw_text.len() < 8 {
             bail!("login response too short: `{}`", raw_text)
@@ -434,7 +393,11 @@ impl SrunClient {
             .with_context(|| format!("failed to parse malformed logout response:\n  {}", raw_json))
     }
 
-    async fn get_challenge(&self, verbose: bool) -> Result<String> {
+    pub async fn get_login_state(&self) -> Result<SrunLoginState> {
+        get_login_state(&self.http_client).await
+    }
+
+    async fn get_challenge(&self) -> Result<String> {
         let params = [
             ("callback", "jsonp"),
             ("username", self.username.as_str()),
@@ -451,13 +414,7 @@ impl SrunClient {
             .with_context(|| "failed to get challenge")?;
         let raw_text = resp.text().await?;
 
-        if verbose {
-            println!(
-                "{} challenge response from portal:\n{}",
-                "bitsrun:".if_supports_color(Stdout, |t| t.blue()),
-                raw_text.if_supports_color(Stdout, |t| t.dimmed())
-            );
-        }
+        debug!("Challenge response from portal:\n{}", raw_text);
 
         if raw_text.len() < 8 {
             bail!("challenge response too short: `{}`", raw_text)

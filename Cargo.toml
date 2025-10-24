@@ -10,10 +10,10 @@ repository = "https://github.com/so1ve/bitsrun-lib-rs"
 readme = "README.md"
 keywords = ["bit", "bitsrun", "srun", "srun-client", "srun-login"]
 categories = ["authentication"]
-authors = ["Spencer Woo <spencer.woo@outlook.com>", "Ray <so1ve@outlook.com>"]
+authors = ["Spencer Woo <spencer.woo@outlook.com>", "Ray <i@mk1.io>"]
 
 [dependencies]
-reqwest = { version = "0.11", features = [
+reqwest = { version = "0.12.14", features = [
     "json",
     "rustls-tls", # in favor of native openssl
 ], default-features = false }
@@ -24,16 +24,7 @@ serde = { version = "1.0", features = ["derive"] }
 anyhow = "1.0"
 hmac = "0.12"
 md-5 = "0.10"
-base64 = "0.21"
+base64 = "0.22.1"
 sha1 = "0.10"
-directories = "5.0"
-tabled = { version = "0.14", features = ["color"] }
-humansize = "2.1"
-chrono-humanize = "0.2"
 chrono = "0.4"
 log = "0.4"
-pretty_env_logger = "0.5"
-enable-ansi-support = "0.2"
-
-[profile.release]
-strip = "symbols"
