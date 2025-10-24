@@ -237,10 +237,7 @@ impl SrunClient {
     pub async fn login(&self, force: bool) -> Result<SrunPortalResponse> {
         // check if already logged in
         if (self.login_state.error == "ok") && !force {
-            bail!(
-                "{} already logged in",
-                self.login_state.online_ip.to_string()
-            )
+            bail!("{} already logged in", self.login_state.online_ip)
         }
 
         // construct checksum and crypto encodings
@@ -279,8 +276,8 @@ impl SrunClient {
             ("action", "login"),
             ("username", self.username.as_str()),
             ("password", password_encoded.as_str()),
-            ("chksum", &chksum.as_str()),
-            ("info", &info.as_str()),
+            ("chksum", chksum.as_str()),
+            ("info", info.as_str()),
             ("ac_id", self.ac_id.as_str()),
             ("ip", &self.ip.to_string()),
             ("type", SRUN_TYPE),
@@ -313,7 +310,7 @@ impl SrunClient {
     pub async fn logout(&self, force: bool) -> Result<SrunPortalResponse> {
         // check if already logged out
         if (self.login_state.error == "not_online_error") && !force {
-            bail!("{} already logged out", self.ip.to_string())
+            bail!("{} already logged out", self.ip)
         }
 
         // check if username match

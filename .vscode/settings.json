@@ -1,4 +1,5 @@
 {
+	"rust-analyzer.check.command": "clippy",
 	"[toml]": {
 		"editor.defaultFormatter": "tamasfe.even-better-toml"
 	}
