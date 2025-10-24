@@ -1,7 +1,7 @@
 [package]
 name = "bitsrun-lib"
 description = "Login and logout library for 10.0.0.55 at BIT"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 license = "MIT"
 homepage = "https://github.com/so1ve/bitsrun-lib-rs"
