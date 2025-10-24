@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0](https://github.com/so1ve/bitsrun-lib-rs/compare/v0.2.0...v0.3.0) - 2025-10-24
+
+### Fixed
+
+- always get latest login_state
+
 ## [0.2.0](https://github.com/so1ve/bitsrun-lib-rs/compare/v0.1.1...v0.2.0) - 2025-10-24
 
 ### Added
