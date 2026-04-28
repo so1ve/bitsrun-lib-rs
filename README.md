@@ -1,5 +1,8 @@
 # bitsrun-lib
 
+> [!WARNING]
+> ⚠️ **DEPRECATED**: Use [`bitgateway-client`](https://github.com/so1ve/bitgateway/tree/main/crates/bitgateway-client) instead.
+
 [![GitHub Workflow Status (CI)](https://img.shields.io/github/actions/workflow/status/so1ve/bitsrun-lib-rs/ci.yml?logo=github&label=ci&labelColor=%23223227)](https://github.com/so1ve/bitsrun-lib-rs/actions/workflows/ci.yml)
 [![GitHub release](https://img.shields.io/github/v/release/so1ve/bitsrun-lib-rs?logo=github&labelColor=%23223227)](https://github.com/so1ve/bitsrun-lib-rs/releases/latest)
 [![Crates.io](https://img.shields.io/crates/d/bitsrun-lib?logo=rust&labelColor=%23223227&color=%23dec867)](https://crates.io/crates/bitsrun-lib)
